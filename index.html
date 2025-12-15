@@ -28,15 +28,17 @@
         <calcite-list id="list-group" selection-mode="single" label="Select ACS Feature Layer">
         </calcite-list>
 
-        <!--  Button to toggling screenshot overlay -->
-        <calcite-button id="overlay-toggle" width="full" icon-start="extent" slot="footer">
-          Toggle Overlay
-        </calcite-button>
+        <!-- Footer with stacked buttons -->
+        <div slot="footer" class="footer-buttons">
+          <calcite-button id="overlay-toggle" width="full" icon-start="extent">
+            Toggle Overlay
+          </calcite-button>
+          <calcite-button id="screenshot-button" width="full" icon-start="camera">
+            Capture Screenshot
+          </calcite-button>
+        </div>
+          
 
-        <!-- Button for capturing scresenshot -->
-        <calcite-button id="screenshot-button" width="full" icon-start="camera" slot="footer">
-          Capture Screenshot
-        </calcite-button>
 
       </calcite-panel>
     </calcite-shell-panel>

@@ -45,3 +45,9 @@ calcite-shell {
   pointer-events: none;
   z-index: 9999999;
 }
+
+.footer-buttons {
+  display: flex;
+  flex-direction: row;
+  gap: 4px; /* small space between buttons */
+}
