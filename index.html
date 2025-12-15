@@ -1,0 +1,53 @@
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <title>ACS Screenshot App</title>
+    <script type="module" src="https://js.arcgis.com/calcite-components/2.10.1/calcite.esm.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://js.arcgis.com/calcite-components/2.10.1/calcite.css" />
+    <link rel="stylesheet" href="https://js.arcgis.com/4.30/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.30/"></script>
+    <script type="module" src="https://js.arcgis.com/map-components/4.30/arcgis-map-components.esm.js"></script>
+    <link rel="stylesheet" href="style.css">
+    </head>
+<body>
+  <calcite-shell>
+
+    <calcite-navigation slot="header">
+      <calcite-navigation-logo slot="logo" heading="ACS Thumbnail Template App"/>
+        description="Post-graduation Planning Solution"></calcite-navigation-logo>
+    </calcite-navigation>
+
+    <!-- panel to house a dropdown our AGOL items, the overlay toggle and a screenshot button -->
+    <calcite-shell-panel slot="panel-start">
+      <calcite-panel>
+
+        <!-- Our list of AGOL items -->
+        <calcite-list id="list-group" selection-mode="single" label="Select ACS Feature Layer">
+        </calcite-list>
+
+        <!--  Button to toggling screenshot overlay -->
+        <calcite-button id="overlay-toggle" width="full" icon-start="extent" slot="footer">
+          Toggle Overlay
+        </calcite-button>
+
+        <!-- Button for capturing scresenshot -->
+        <calcite-button id="screenshot-button" width="full" icon-start="camera" slot="footer">
+          Capture Screenshot
+        </calcite-button>
+
+      </calcite-panel>
+    </calcite-shell-panel>
+
+    <!-- center area: maps will occupy the shell center (not behind the panel) -->
+    <div id="maps-container">
+      <div id="screenshot-overlay"></div>
+      <div class="map-frame" id="state-map"></div>
+      <div class="map-frame" id="county-map"></div>
+      <div class="map-frame" id="tract-map"></div>
+    </div>
+
+  </calcite-shell>
+</body>
+<script type="module" src="main.js"></script>
+</html>
