@@ -2,7 +2,8 @@ import Map from "@arcgis/core/Map.js";
 import MapView from "@arcgis/core/views/MapView.js";
 import FeatureLayer from "@arcgis/core/layers/FeatureLayer.js";
 import PortalItem from "@arcgis/core/portal/PortalItem.js";
-import * as reactiveUtils from "@arcgis/core/core/reactiveUtils.js";
+import Basemap from "@arcgis/core/Basemap.js";
+import TileLayer from "@arcgis/core/layers/TileLayer.js";
 
 const itemIDs = [
   '23ab8028f1784de4b0810104cd5d1c8f',
@@ -21,10 +22,6 @@ const itemIDs = [
 let stateView = null;
 let countyView = null;
 let tractView = null;
-
-const allViews = [stateView, countyView, tractView];
-let lockStatus = false;
-
 
 // small function for cleaning up screenshot names
 function convertToScreenshotName(t){
@@ -98,7 +95,6 @@ async function createView(containerId, itemId, sublayerIds, rangeKey) {
   const view = new MapView({
     container: containerId,
     map: map,
-    constraints: { snapToZoom: false },
     ui: { components: []}  // no default UI components, we don't want zoom +- or layer list
   });
 
@@ -133,7 +129,6 @@ async function loadSelectedItem(itemId) {
   stateView = await createView("state-map", itemId, [0]);
   countyView = await createView("county-map", itemId, [1]);
   tractView = await createView("tract-map", itemId, [2]);
-
 }
 
 // defaulting to fill our maps with the first item in the list
@@ -269,6 +264,8 @@ async function captureScreenshot() {
     })
   );
   
+  console.log("SCREENSHOT NAME: ", screenshotName);
+  
   // filter out non-intersecting / failed shots
   const validShots = shotsInfo.filter(Boolean);
   if (validShots.length === 0) {
@@ -321,30 +318,3 @@ if (resetButton) {
 } else {
   console.warn("view-reset element not found in DOM.");
 }
-
-
-function syncViews(){
-  
-}
-
-// functionality for locking views
-const lockButton = document.getElementById("view-lock");
-if (lockButton) {
-  lockButton.addEventListener("click", () => {
-    if (!lockStatus){
-      lockStatus = true;
-      lockButton.textContent = "Unlock Views";
-      lockButton.attributes[2].value = "unlock"
-    } else {
-      lockStatus = false;
-      lockButton.textContent = "Lock Views";
-      lockButton.attributes[2].value = "lock"
-    }
-    console.log("Status of lock button", lockStatus)
-  });
-  
-} else {
-
-  console.warn("view-reset element not found in DOM.");
-}
-
