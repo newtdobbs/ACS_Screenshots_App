@@ -48,6 +48,6 @@ calcite-shell {
 
 .footer-buttons {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   gap: 4px; /* small space between buttons */
 }

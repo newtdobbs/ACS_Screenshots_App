@@ -2,6 +2,8 @@ import Map from "@arcgis/core/Map.js";
 import MapView from "@arcgis/core/views/MapView.js";
 import FeatureLayer from "@arcgis/core/layers/FeatureLayer.js";
 import PortalItem from "@arcgis/core/portal/PortalItem.js";
+import Basemap from "@arcgis/core/Basemap.js";
+import TileLayer from "@arcgis/core/layers/TileLayer.js";
 
 const itemIDs = [
   '23ab8028f1784de4b0810104cd5d1c8f',
@@ -15,6 +17,16 @@ const itemIDs = [
   'babfd093d1f645e092edcb2cf301eaab',
   '5522b6f6d6eb48e6ac33164657c6d7a0',
 ];
+
+
+let stateView = null;
+let countyView = null;
+let tractView = null;
+
+// small function for cleaning up screenshot names
+function convertToScreenshotName(t){
+  return t.replace(/\s*-\s*/g, '_').replace(/\s+/g, '_') + ".png";
+}
 
 // setting Kansas City as default center as its ~roughly~ central in US
 const default_center = [-94.66, 39.04]
@@ -51,9 +63,28 @@ function createLayers(itemId, sublayerIds) {
   });
 }
 
+async function resetView(v){
+  let l;
+  try {
+    await v.map.layers.getItemAt(0).load();
+    l = v.map.layers.getItemAt(0);
+  } catch (err) {
+    console.warn("Error loading layer for zoom:", err);
+  }
+  // calculating mid scale for visibility, a range in which symbology should definitely be visible
+  const midScale = (l.minScale + l.maxScale) / 2;
+  // console log for debug
+  console.log(`Resetting view for Layer ${l.title} to mid scale of: ${midScale}`);
+  // updating screenshot name with layer title but dropping the geography level suffix
+  screenshotName = l.title.replace(regex, "").replace(/\s+/g, '_') + ".png";
+  // zooming to visibility mid scale and center of country 
+  v.goTo({ scale: midScale, center: default_center });
+}
+
 // function to create a map view using the layers associated with the given AGOL item id.
 // though sublayerIDs is an array, it will only contain one value per view (state, county, or tract)
 async function createView(containerId, itemId, sublayerIds, rangeKey) {
+
   // creating a map using the list of layers for the agol item ID
   const map = new Map({
     basemap: "gray", // may end up changing this
@@ -67,22 +98,13 @@ async function createView(containerId, itemId, sublayerIds, rangeKey) {
     ui: { components: []}  // no default UI components, we don't want zoom +- or layer list
   });
 
+  // resetting view zoom levels & center
+  resetView(view);
 
-  try {
-    await map.layers.getItemAt(0).load();
-    const lyr = map.layers.getItemAt(0);
-    // calculating mid scale for visibility, a range in which symbology should definitely be visible
-    const midScale = (lyr.minScale + lyr.maxScale) / 2;
-    console.log(`Layer ${lyr.title} minScale=${lyr.minScale}, maxScale=${lyr.maxScale}, midScale=${midScale}`);
-    // zooming to visibility mid scale and center of country 
-    view.goTo({ scale: midScale, center: default_center });
-  } catch (err) {
-    console.warn("Error loading layer for zoom:", err);
-  }
   return view;
 }
 
-
+// grabs the title for an AGOL item based on its AGOL item id, will be used to populate calcite items
 async function getItemTitle(itemId) {
   try {
     // Creates a new portal item from the item id
@@ -97,10 +119,6 @@ async function getItemTitle(itemId) {
     return itemId;
   }
 }
-
-let stateView = null;
-let countyView = null;
-let tractView = null;
 
 // only loading selected item so as to improve performance
 async function loadSelectedItem(itemId) {
@@ -129,21 +147,18 @@ const listGroup = document.getElementById("list-group");
     if (itemIDs[0] === id) {
       console.log("====================== Selected ID:", id, "======================");
       listItem.selected = true;
-      listItem.iconEnd = "eyedropper"; 
-      screenshotName = title.replace(/\s*-\s*/g, '_').replace(/\s+/g, '_') + ".png";
+      screenshotName = convertToScreenshotName(title);
       console.log("SCRREENSHOT NAME DEFAULT: ", screenshotName);
       await loadSelectedItem(id);
     }
     
     listItem.addEventListener("click", async () => {
       console.log("====================== Selected ID:", id, "======================");
-      // updateViewsForItem(id);
-      // listItem.iconEnd = "eyedropper"; 
-      // updating the screenshot name with the selected layer title
-      screenshotName = title.replace(/\s*-\s*/g, '_').replace(/\s+/g, '_') + ".png";
+      screenshotName = convertToScreenshotName(title);
       console.log("SCRREENSHOT NAME UPDATED TO: ", screenshotName);
-      await loadSelectedItem(id);
+      await updateViewsForItem(id);
     });
+
     listGroup.appendChild(listItem);
 }
 })();
@@ -159,28 +174,13 @@ async function updateViewsForItem(itemId) {
   // looping through sublayers of view
   for (const { view, sublayers } of mappings) {
     if (!view || !view.map) continue;
-
     // first removing all layers from a given view (aka clearing each map column)
     view.map.layers.removeAll();
-    //creating a new view corresponding for the specific sublayer of the selected agol item id
+    // creating a new layers for the specific sublayer of the selected agol item id
     const newLayers = createLayers(itemId, sublayers); 
     // adding new layers to the map
     newLayers.forEach((ly) => view.map.layers.add(ly));
-
-    try {
-      await newLayers[0].load();
-      const lyr = newLayers[0];
-      // calculating mid scale for visibility, a range in which symbology should definitely be visible
-      const midScale = (lyr.minScale + lyr.maxScale) / 2;
-      // console log for debug
-      console.log(`Layer ${lyr.title} minScale=${lyr.minScale}, maxScale=${lyr.maxScale}, midScale=${midScale}`);
-      // updating screenshot name with layer title but dropping the geography level suffix
-      screenshotName = lyr.title.replace(regex, "").replace(/\s+/g, '_') + ".png";
-      // zooming to visibility mid scale and center of country 
-      view.goTo({ scale: midScale, center: default_center });
-    } catch (err) {
-      console.warn("Layer load error", err);
-    }
+    resetView(view);
   }
 }
 
@@ -198,6 +198,11 @@ overlayToggle.addEventListener("click", () => {
 
 // Functionality for capturing screenshot
 const screenshotButton = document.getElementById("screenshot-button");
+if (screenshotButton) {
+  screenshotButton.addEventListener("click", captureScreenshot);
+} else {
+  console.warn("screenshot-button element not found in DOM.");
+}
 async function captureScreenshot() {
   
   
@@ -301,4 +306,17 @@ async function captureScreenshot() {
     };
   });
 }
-screenshotButton.addEventListener("click", captureScreenshot);
+
+// functionality for resetting views
+const resetButton = document.getElementById("view-reset");
+if (resetButton) {
+  resetButton.addEventListener("click", () => {
+    [stateView, countyView, tractView].forEach(v => {
+      if (v) resetView(v);
+    });
+  });
+} else {
+  console.warn("view-reset element not found in DOM.");
+}
+
+// functionality for locking views
