@@ -15,9 +15,14 @@
 <body>
   <calcite-shell>
 
+    <!-- Navbar header -->
     <calcite-navigation slot="header">
-      <calcite-navigation-logo slot="logo" heading="ACS Thumbnail Template App"/>
+      <calcite-navigation-logo slot="logo" heading="ACS Thumbnail Template App" icon-end/>
         description="ACS Web Map Thumbnail Generator"></calcite-navigation-logo>
+        <!-- Menu for github repository -->
+        <calcite-menu slot="content-end">
+            <calcite-menu-item text="GitHub Repo" text-enabled href="https://github.com/newtdobbs/ACS_Screenshots_App.git" target="_blank"></calcite-menu-item>
+        </calcite-menu>
     </calcite-navigation>
 
     <!-- panel to house a dropdown our AGOL items, the overlay toggle and a screenshot button -->
