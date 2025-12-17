@@ -37,22 +37,27 @@
 
           <!-- Four-row stack of footer buttons -->
           <div slot="footer" class="footer-buttons">
+          
+            <!-- Button for locking views -->
+            <calcite-button id="show-search" width="full" icon-start="magnifying-glass-plus">
+              Show Search
+            </calcite-button>
+
             <!-- Button for resetting view -->
             <calcite-button id="view-reset" width="full" icon-start="reset">
               Reset Views
             </calcite-button>
-            <!-- Button for locking views -->
-            <calcite-button id="view-lock" width="full" icon-start="lock">
-              Show Search
-            </calcite-button>
+            
             <!-- Button for toggling overlay -->
             <calcite-button id="overlay-toggle" width="full" icon-start="extent">
               Toggle Overlay
             </calcite-button>
+            
             <!-- Button for capturing screenshot -->
             <calcite-button id="screenshot-button" width="full" icon-start="camera">
               Capture Screenshot
             </calcite-button>
+          
           </div>
         </div>
 

@@ -4,6 +4,8 @@ import FeatureLayer from "@arcgis/core/layers/FeatureLayer.js";
 import PortalItem from "@arcgis/core/portal/PortalItem.js";
 import Basemap from "@arcgis/core/Basemap.js";
 import TileLayer from "@arcgis/core/layers/TileLayer.js";
+import Search from "@arcgis/core/widgets/Search.js";
+
 
 const itemIDs = [
   '23ab8028f1784de4b0810104cd5d1c8f',
@@ -84,6 +86,8 @@ async function resetView(v){
 // function to create a map view using the layers associated with the given AGOL item id.
 // though sublayerIDs is an array, it will only contain one value per view (state, county, or tract)
 async function createView(containerId, itemId, sublayerIds, rangeKey) {
+
+  const base = new Basemap
 
   // creating a map using the list of layers for the agol item ID
   const map = new Map({
@@ -317,4 +321,35 @@ if (resetButton) {
   });
 } else {
   console.warn("view-reset element not found in DOM.");
+}
+
+// functionality for showing/hiding search 
+let showSearch = false;
+let tractSearchWidget = null; // store reference
+
+const searchButton = document.getElementById("show-search");
+if (searchButton) {
+  searchButton.addEventListener("click", () => {
+    if (showSearch) {
+      // Remove the search widget
+      if (tractSearchWidget) {
+        tractView.ui.remove(tractSearchWidget);
+      }
+      showSearch = false;
+      searchButton.textContent = "Show Search";
+      searchButton.iconStart = "magnifying-glass-plus";
+    } else {
+      // Create it only if it doesn't exist yet
+      if (!tractSearchWidget) {
+        tractSearchWidget = new Search({ view: tractView });
+      }
+      tractView.ui.add(tractSearchWidget, "top-right");
+      showSearch = true;
+      searchButton.textContent = "Hide Search";
+      searchButton.iconStart = "magnifying-glass-minus";
+    }
+    console.log("Search status is:", showSearch);
+  });
+} else {
+  console.warn("search-hide element not found in DOM.");
 }
