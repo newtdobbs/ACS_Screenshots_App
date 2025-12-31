@@ -13,10 +13,10 @@
     <link rel="stylesheet" href="style.css">
     </head>
 <body>
-  <calcite-shell>
+  <calcite-shell id="shell">
 
     <!-- Navbar header -->
-    <calcite-navigation slot="header">
+    <calcite-navigation id="navigation" slot="header">
       <calcite-navigation-logo slot="logo" heading="ACS Thumbnail Template App" icon-end/>
         description="ACS Web Map Thumbnail Generator"></calcite-navigation-logo>
         <!-- Menu for github repository -->
@@ -30,6 +30,12 @@
     <!-- panel to house a dropdown our AGOL items, the overlay toggle and a screenshot button -->
     <calcite-shell-panel slot="panel-start">
       <calcite-panel>
+
+        <calcite-input  placeholder="AGOL item" scale="m" id="input">
+            <!-- <calcite-button id="upload" icon-start="file" slot="action" scale="m">
+                Upload
+            </calcite-button> -->
+        </calcite-input>
 
         <!-- Our list of AGOL items -->
         <calcite-list id="list-group" selection-mode="single" label="Select ACS Feature Layer">
