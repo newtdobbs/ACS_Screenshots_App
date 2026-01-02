@@ -40,13 +40,9 @@ let selectedLayerName = "";
 // screenshot name variable to be used when saving files
 let screenshotName = "";
 
-const wordsToRemove = ['State', 'County', 'Tract'];
-const regex = new RegExp(`\\s-\\s(?:${wordsToRemove.join("|")})$`, "i");
-
 // small function for cleaning up screenshot names
 function convertToScreenshotName(input){
-  // return t.replace(/\s*-\s*/g, '_').replace(/\s+/g, '_') + ".png";
-    // Split on dashes
+  // Split on dashes
   let parts = input.split('-').map(p => p.trim());
 
   // Keep only the first two parts (drop the second variable)
@@ -112,13 +108,13 @@ async function createView(containerId, itemId, sublayerIds, rangeKey) {
         opacity: 1,
         visible: true
       }),
+      // keeping the other components to the human geography base in case we want them
       // new VectorTileLayer({
       //   portalItem: { id: "2afe5b807fa74006be6363fd243ffb30" },
       //   title: "Human Geography Base",
       //   opacity: 1,
       //   visible: true
       // }),
-      // the detail for the human geography base, we can re-add it if we want with a lower opacity
       // new VectorTileLayer({
       //   portalItem: { id: "97fa1365da1e43eabb90d0364326bc2d" },
       //   title: "Human Geography Detail",
@@ -203,17 +199,31 @@ const listGroup = document.getElementById("list-group");
   }
 })();
 
+// grabbing the list length label to update when we populate our list group
+const listLengthLabel = document.getElementById("list-length")
+
+// udpates the list label length number 
+function updateListLengthLabel() {
+  if (!listGroup || !listLengthLabel) return;
+  const len = listGroup.querySelectorAll("calcite-list-item").length;
+  if(len == 1){
+    listLengthLabel.textContent = "List length: " + len + " item";
+  } else {
+    listLengthLabel.textContent = "List length: " + len + " items";
+  }
+}
+
 async function populateListGroup(inputDialog){
   const raw = inputDialog.value || "";
-  // split on commas, newlines, or whitespace and also trim/remove empties
+  // split on commas or newlines and whitespace and also trim/remove empties
   const itemIDs = raw.split(/[\s,]+/).map(s => s.trim()).filter(Boolean);
-  // remove duplicates within the provided input while preserving order
+  // remove any dupes that may be in the input dialog
   const uniqueItemIDs = Array.from(new Set(itemIDs));
   if (!listGroup) return;
   // if there's nothing in the input return nothing
   if (uniqueItemIDs.length === 0) return;
 
-  // figuring out which IDs are already in the list to only add new ones, avoiding duplicates
+  // figuring out which IDs are already in the list to only add new ones, avoiding dupes
   const existingItems = Array.from(listGroup.querySelectorAll("calcite-list-item"));
   const existingIds = new Set(existingItems.map(el => (el.value !== undefined ? el.value : el.getAttribute("value"))));
   const listWasEmpty = existingItems.length === 0;
@@ -236,6 +246,16 @@ async function populateListGroup(inputDialog){
       await updateViewsForItem(id);
     });
 
+    // handle removal when user clicks the close icon
+    listItem.addEventListener("calciteListItemClose", async (evt) => {
+      try {
+        listItem.remove();
+      } catch (e) {
+        console.warn('Failed to remove list item DOM node:', e);
+      }
+      updateListLengthLabel();
+    });
+
     // only selecting the first item if the map was empty before an append
     if (listWasEmpty && appendedCount === 0) {
       listItem.selected = true;
@@ -249,6 +269,8 @@ async function populateListGroup(inputDialog){
   }
   // clearing the input dialog after processing
   inputDialog.value = "";
+  // updating the list length label only AFTER fully populating the list 
+  updateListLengthLabel();
 }
 
 // function to update 3 map views based on selected item 
