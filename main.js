@@ -36,6 +36,7 @@ let tractVisible = false;
 const default_center = [-94.66, 39.04]
 
 let selectedLayerName = "";
+let selectedItemId = null;
 
 // screenshot name variable to be used when saving files
 let screenshotName = "";
@@ -61,6 +62,13 @@ const visibilityRanges = {
   2:  { minScale: 2000000, maxScale: 0 }
 };
 
+
+/*
+***********************************************
+MAP VIEW FUNCTIONALITIES
+***********************************************
+*/
+
 // function to create layers based on visibility ranges
 // this will only happen once per view, as each column only gets one layer (state, county, or tract)
 function createLayers(itemId, sublayerIds) {
@@ -81,18 +89,55 @@ function createLayers(itemId, sublayerIds) {
 
 async function resetView(v){
   let l;
-  try {
-    await v.map.layers.getItemAt(0).load();
-    l = v.map.layers.getItemAt(0);
-  } catch (err) {
-    console.warn("Error loading layer for zoom:", err);
+  if(v.map.layers.length > 0){
+    try {
+      await v.map.layers.getItemAt(0).load();
+      l = v.map.layers.getItemAt(0);
+    } catch (err) {
+      console.warn("Error loading layer for zoom:", err);
+    }
   }
-  // calculating mid scale for visibility, a range in which symbology should definitely be visible
-  const midScale = (l.minScale + l.maxScale) / 2;
-  // console log for debug
-  console.log(`Resetting view for Layer ${l.title} to mid scale of: ${midScale}`);
-  // zooming to visibility mid scale and center of country 
-  v.goTo({ scale: midScale, center: default_center });
+  // if a layer exists, calculate mid scale for visibility
+  if (l) {
+    const midScale = (l.minScale + l.maxScale) / 2;
+    // console.log(`Resetting view for Layer ${l.title} to mid scale of: ${midScale}`);
+    v.goTo({ scale: midScale, center: default_center });
+  } else {
+    // no operational layer present (basemap-only) — use a sensible default scale
+    const defaultScale = 5000000;
+    // console.log(`Resetting view to default scale: ${defaultScale}`);
+    v.goTo({ scale: defaultScale, center: default_center });
+  }
+}
+
+// create a basemap-only view for a given container
+async function createBasemapOnlyView(containerId) {
+  const base = new Basemap({
+    baseLayers: [
+      new VectorTileLayer({
+        portalItem: { id: "291da5eab3a0412593b66d384379f89f" },
+        title: "Light Gray Canvas Base",
+        opacity: 1,
+        visible: true
+      })
+    ]
+  });
+
+  const map = new Map({
+    basemap: base,
+    layers: []
+  });
+
+  const view = new MapView({
+    container: containerId,
+    map: map,
+    ui: { components: [] }
+  });
+
+  await view.when();
+  resetView(view);
+  view.popupEnabled = false;
+  return view;
 }
 
 // function to create a map view using the layers associated with the given AGOL item id.
@@ -147,6 +192,12 @@ async function createView(containerId, itemId, sublayerIds, rangeKey) {
   return view;
 }
 
+/*
+***********************************************
+AGOL ITEM FUNCTIONALITIES
+***********************************************
+*/
+
 // grabs the title for an AGOL item based on its AGOL item id, will be used to populate calcite items
 async function getItemTitle(itemId) {
   try {
@@ -174,13 +225,19 @@ async function loadSelectedItem(itemId) {
   tractView = await createView("tract-map", itemId, [2]);
 }
 
-//
+/*
+***********************************************
+CALCITE LIST FUNCTIONALITIES
+***********************************************
+*/
+
+// grabbing the dialog box 
 const inputDialog = document.getElementById("input");
 if (inputDialog) {
   inputDialog.addEventListener('keydown', function(event) {
-    // ensuring key pressed is 'Enter'
+    // uaing the enter key to trigger when input is considered 'done''
     if (event.key === 'Enter') {
-        // preventing default action
+        // preventing the default enter action
         event.preventDefault();
         // populating our calcite list based on the input IDs
         populateListGroup(inputDialog);
@@ -199,6 +256,17 @@ const listGroup = document.getElementById("list-group");
   }
 })();
 
+// create basemap-only views at startup so user sees a map instead of blank columns
+(async () => {
+  try {
+    stateView = await createBasemapOnlyView("state-map");
+    countyView = await createBasemapOnlyView("county-map");
+    tractView = await createBasemapOnlyView("tract-map");
+  } catch (e) {
+    console.warn('Failed to create basemap-only views on startup:', e);
+  }
+})();
+
 // grabbing the list length label to update when we populate our list group
 const listLengthLabel = document.getElementById("list-length")
 
@@ -213,6 +281,7 @@ function updateListLengthLabel() {
   }
 }
 
+// ------------------- UPDATING MAP VIEWS -------------------
 async function populateListGroup(inputDialog){
   const raw = inputDialog.value || "";
   // split on commas or newlines and whitespace and also trim/remove empties
@@ -239,40 +308,70 @@ async function populateListGroup(inputDialog){
     listItem.value = id;
     listItem.closable = true;
 
-    // set screenshot name from the title when clicked
-    listItem.addEventListener("click", async () => {
-      selectedLayerName = listItem.label;
-      screenshotName = convertToScreenshotName(selectedLayerName) + ".png";
-      await updateViewsForItem(id);
-    });
-
-    // handle removal when user clicks the close icon
-    listItem.addEventListener("calciteListItemClose", async (evt) => {
-      try {
-        listItem.remove();
-      } catch (e) {
-        console.warn('Failed to remove list item DOM node:', e);
-      }
-      updateListLengthLabel();
-    });
-
     // only selecting the first item if the map was empty before an append
     if (listWasEmpty && appendedCount === 0) {
       listItem.selected = true;
-      selectedLayerName = title;
+      selectedItemId = listItem.value;
+      selectedLayerName = listItem.label;
       screenshotName = convertToScreenshotName(selectedLayerName) + ".png";
-      await loadSelectedItem(id);
+      // add the selected item's layers to the existing basemap-only views
+      await updateViewsForItem(id);
     }
 
+    // adding the item to the calcite list
     listGroup.appendChild(listItem);
     appendedCount++;
+    
+    // event handler for when a list item is selected, NOT removed
+    listItem.addEventListener("calciteListItemSelect", async () => {
+      selectedItemId = listItem.value;
+      selectedLayerName = listItem.label;
+      console.log('click registered for item: ', selectedLayerName)
+      screenshotName = convertToScreenshotName(selectedLayerName) + ".png";
+      await updateViewsForItem(selectedItemId);
+    });
+    
+    // event handler for when a list item is removed, NOT selected
+    listItem.addEventListener("calciteListItemClose", async (evt) => {
+      try{
+        // removing calcite  item from  DOM
+        listItem.remove();
+        updateListLengthLabel();
+        const removedId = listItem.value;
+        const wasSelected = (removedId === selectedItemId); 
+        console.log("Was the removed item selected? ", wasSelected)
+        if (wasSelected) {
+          // clearing all operational layers from all views
+          [stateView, countyView, tractView].forEach(v => {
+            if (v && v.map && v.map.layers) {
+              v.map.layers.removeAll();
+              resetView(v);
+              v.popupEnabled = false;
+            }
+          });
+
+          // resetting traclomgvariables
+          selectedItemId = null;
+          selectedLayerName = "";
+          screenshotName = "";
+        }
+      }  catch (e) {
+        console.warn('Error removing list item or clearing views:', e);
+      }
+    });
   }
-  // clearing the input dialog after processing
+
+  // clearing the input dialog after processing the pasted input
   inputDialog.value = "";
+
   // updating the list length label only AFTER fully populating the list 
   updateListLengthLabel();
+
+  // logging the defaults for debug 
+  console.log("Selected item name: ", selectedLayerName, ", id: ", selectedItemId)
 }
 
+// ------------------- UPDATING MAP VIEWS -------------------
 // function to update 3 map views based on selected item 
 async function updateViewsForItem(itemId) {
   const mappings = [
@@ -296,28 +395,42 @@ async function updateViewsForItem(itemId) {
   }
 }
 
-// functionality to toggle overlay
-let overlayStatus = true; // overlay defaults to one
+/*
+***********************************************
+BUTTON FUNCTIONALITIES
+***********************************************
+*/
+
+// ------------------- OVERLAY BUTTON FUNCTIONALITY -------------------
+// grabbing the overlay div
 const overlay = document.getElementById("screenshot-overlay");
+// overlay defaults to visible, aka true
+let overlayStatus = true; 
+// grabbing the overlay toggle button
 const overlayToggle = document.getElementById("overlay-toggle");
-// toggling based on simple event listener
+// toggling based on click event listener
 overlayToggle.addEventListener("click", () => {
-  // if overlay was OFF before being clicked
+  // if overlay was OFF before the toggle was clicked
   if (overlay.style.display == 'none') {
+    // then we turn on the overlay 
     overlay.style.display = 'block';
+    // and set visibility to true
     overlayStatus = true;
+    // if there was an alert previously visible, we remove it
     existingAlert = document.querySelector("calcite-alert")
     if(existingAlert) existingAlert.remove();
     
-    // if overlay was ON before being clicked
+    // if overlay was ON before the toggle was clicked
   } else {
+    // then we turn off the overlay
     overlay.style.display = 'none';
+    // and set the visibility to false
     overlayStatus = false;
   }
-  // console.log("Overlay status:", overlayStatus)
 });
 
-// grabbing the container that holds our maps, we'll put warning over maps if screenshot is selected with overlay OFF
+// ------------------- SCREENSHOT BUTTON FUNCTIONALITY -------------------
+// grabbing the container that holds our maps, we'll put warning over this container if screenshot is selected with overlay OFF
 const screenshotButton = document.getElementById("screenshot-button");
 if (screenshotButton) {
   screenshotButton.addEventListener("click", captureScreenshot);
@@ -325,27 +438,27 @@ if (screenshotButton) {
   console.warn("screenshot-button element not found in DOM.");
 }
 
-// functionality for adding a screenshot warning if the overlay is turned off
+// helper function for shwoing a warning if the overlay is turned off when taking screenshot
 function showScreenshotWarning() {
-  // Remove any existing alert
+  // removing any pre-existing alert
   existingAlert = document.querySelector("calcite-alert")
   if(existingAlert) existingAlert.remove();
 
+  // displaying an alert, warning the user to turn on the overlay when taking screensbot 
   const screenshotWarning = document.createElement("calcite-alert");
   screenshotWarning.open = true;
   screenshotWarning.kind = "warning";
   screenshotWarning.autoDismiss = true;
-
   const title = document.createElement("calcite-alert-message");
   title.textContent = "Overlay must be ENABLED (it will not be captured in screenshot).";
   title.slot = "title";
   screenshotWarning.appendChild(title);
 
-
-  // Append somewhere that won't affect map layout
+  // appending the warning to the DOM
   document.body.appendChild(screenshotWarning);
 }
-// Functionality for capturing screenshot
+
+// actual function for capturing screenshot
 async function captureScreenshot() {
   
   // if the overlay is OFF when the screenshot button is clicked, we want to warn the user
@@ -357,10 +470,10 @@ async function captureScreenshot() {
   } else {
     console.log("Overlay is on, capturing screenshot.")
     
-    // grabbing the overlay rectangle's in screenspace
+    // grabbing the overlay rectangle in screenspace
     const overlayRectangle = overlay.getBoundingClientRect();
     
-    // calculate intersection between two rectangles to determine what part of each map view is within the overlay
+    // calculating intersection between two rectangles to determine what part of each map view is within the overlay
     function intersectRects(a, b) {
       const left = Math.max(a.left, b.left);
       const top = Math.max(a.top, b.top);
@@ -388,6 +501,7 @@ async function captureScreenshot() {
       if (!layer) return null;
       await layer.load();
 
+      // grabbing the rectangle of each map view and determining its intersection with the overlay element
       const viewRect = view.container.getBoundingClientRect();
       const intersection = intersectRects(overlayRectangle, viewRect);
       if (!intersection) {
@@ -395,7 +509,7 @@ async function captureScreenshot() {
         return null;
       }
 
-      // convert the overlay intersection (screen coords) into map coords
+      // convert the overlay intersection (screen coords) into map coords which we need for view.takeScreenshot()
       // top-left
       const topLeft = view.toMap({
         x: Math.round(intersection.left - viewRect.left),
@@ -427,7 +541,7 @@ async function captureScreenshot() {
         }
       }
 
-      // area relative to this view's top-left (unchanged)
+      // area relative to this view's top-left 
       const area = {
         x: Math.round(intersection.left - viewRect.left),
         y: Math.round(intersection.top - viewRect.top),
@@ -498,7 +612,8 @@ async function captureScreenshot() {
   }
 }
 
-// functionality for resetting views
+// ------------------- RESET VIEW BUTTON FUNCTIONALITY -------------------
+// grabbing the reset views button
 const resetButton = document.getElementById("view-reset");
 if (resetButton) {
   resetButton.addEventListener("click", () => {
@@ -510,28 +625,33 @@ if (resetButton) {
   console.warn("view-reset element not found in DOM.");
 }
 
-// functionality for showing/hiding search 
+// ------------------- RESET VIEW BUTTON FUNCTIONALITY -------------------
 let showSearch = false;
 let tractSearchWidget = null; // store reference
 
+// grabbing the show search button from the dom
 const searchButton = document.getElementById("show-search");
 if (searchButton) {
   searchButton.addEventListener("click", () => {
+    // if the search was already visible in the tract view
     if (showSearch) {
-      // Remove the search widget
+      // then we remove the search widget
       if (tractSearchWidget) {
         tractView.ui.remove(tractSearchWidget);
       }
       showSearch = false;
+      // and change the text & icon for the button
       searchButton.textContent = "Show Search";
       searchButton.iconStart = "magnifying-glass-plus";
     } else {
-      // Create it only if it doesn't exist yet
+      // if the search widget didn't exist when the button was clicked then we create it 
       if (!tractSearchWidget) {
         tractSearchWidget = new Search({ view: tractView });
       }
+      // add it to the top right corner
       tractView.ui.add(tractSearchWidget, "top-right");
       showSearch = true;
+      // and change the text & icon for the button
       searchButton.textContent = "Hide Search";
       searchButton.iconStart = "magnifying-glass-minus";
     }
