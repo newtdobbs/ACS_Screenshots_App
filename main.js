@@ -8,29 +8,13 @@ import Search from "@arcgis/core/widgets/Search.js";
 import Extent from "@arcgis/core/geometry/Extent.js";
 import * as geometryEngine from "@arcgis/core/geometry/geometryEngine.js";
 
-// const itemIDs = [
-//   '23ab8028f1784de4b0810104cd5d1c8f',
-//   '45ede6d6ff7e4cbbbffa60d34227e462',
-//   '0e468b75bca545ee8dc4b039cbb5aff6',
-//   '84e3022a376e41feb4dd8addf25835a3',
-//   'f430d25bf03744edbb1579e18c4bf6b8',
-//   '2de116f62be54987b63b978c06a0a085',
-//   '7c69956008bb4019bbbe67ed9fb05dbb',
-//   'ab08335514884c1f834e4cc43fb55c51',
-//   'babfd093d1f645e092edcb2cf301eaab',
-//   '5522b6f6d6eb48e6ac33164657c6d7a0',
-// ];
-
+// tracking a pre-existing overlay toggle alert
 let existingAlert;
 
+// null vars for the three views that will occupy the panes of our application
 let stateView = null;
-let stateVisible = false;
-
 let countyView = null;
-let countyVisible = false;
-
 let tractView = null;
-let tractVisible = false;
 
 // setting Kansas City as default center as its ~roughly~ central in US
 const default_center = [-94.66, 39.04]
@@ -38,22 +22,20 @@ const default_center = [-94.66, 39.04]
 let selectedLayerName = "";
 let selectedItemId = null;
 
-// screenshot name variable to be used when saving files
-let screenshotName = "";
-
 // small function for cleaning up screenshot names
 function convertToScreenshotName(input){
-  // Split on dashes
+
+  // first splitting on dashes to get the two constituent parts of the layer's name
   let parts = input.split('-').map(p => p.trim());
-
-  // Keep only the first two parts (drop the second variable)
-  let firstTwo = parts.slice(0, 2);
-
-  // Join with underscores, replacing spaces with underscores
-  let result = firstTwo.join('_').replace(/\s+/g, '_');
-
+  
+  // then replacing spaces with underscores for a cleaner screenshot name
+  let result = parts.join('_').replace(/\s+/g, '_');
+  
   return result;
 }
+
+// screenshot name variable to be used when saving files
+let screenshotName = "";
 
 // predefined visibility ranges, we'll likely tweak these 
 const visibilityRanges = {
@@ -180,7 +162,6 @@ async function createView(containerId, itemId, sublayerIds, rangeKey) {
   const view = new MapView({
     container: containerId,
     map: map,
-    ui: { components: []}  // no default UI components, we don't want zoom +- or layer list
   });
 
   // resetting view zoom levels & center
@@ -281,7 +262,7 @@ function updateListLengthLabel() {
   }
 }
 
-// ------------------- UPDATING MAP VIEWS -------------------
+// ------------------- POPULATING LIST FROM INPUT -------------------
 async function populateListGroup(inputDialog){
   const raw = inputDialog.value || "";
   // split on commas or newlines and whitespace and also trim/remove empties
@@ -529,9 +510,7 @@ async function captureScreenshot() {
         ymax: Math.max(topLeft.y, bottomRight.y),
         spatialReference: view.spatialReference
       });
-      console.log(`Extent for map within ${name} view is`, view.extent)
-      console.log(`Extent for OVERLAY within ${name} view is`, overlayExtent)
-
+      
       // if layer has no fullExtent, skip geographic test and proceed
       if (layer.fullExtent) {
         const intersects = geometryEngine.intersects(overlayExtent, layer.fullExtent);
@@ -625,7 +604,7 @@ if (resetButton) {
   console.warn("view-reset element not found in DOM.");
 }
 
-// ------------------- RESET VIEW BUTTON FUNCTIONALITY -------------------
+// ------------------- SEARCH BUTTON FUNCTIONALITY -------------------
 let showSearch = false;
 let tractSearchWidget = null; // store reference
 
