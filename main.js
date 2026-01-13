@@ -8,6 +8,67 @@ import Search from "@arcgis/core/widgets/Search.js";
 import Extent from "@arcgis/core/geometry/Extent.js";
 import * as geometryEngine from "@arcgis/core/geometry/geometryEngine.js";
 
+// dictionary for converting ACS layer names to their respective 4-digit abbreviation 
+const layerNameDict = {
+'ACS Children by Parental Labor Force Participation':	'PLFP',
+'ACS Children in Immigrant Families':	'IMMF',
+'ACS Children with Grandparent Householder':	'CGNP',
+'ACS Context for Child Well-Being':	'CHWB',
+'ACS Context for Emergency Response':	'EMRS',
+'ACS Context for Senior Well-Being':	'SNWB',
+'ACS Disability by Type':	'TPDB',
+'ACS Disability Status':	'DBTY',
+'ACS Earnings by Occupation by Sex':	'ESEX',
+'ACS Earnings by Occupation':	'MEOC',
+'ACS Education by Veteran Status':	'VEDU',
+'ACS Educational Attainment by Race by Sex':	'EARS',
+'ACS Educational Attainment':	'EDAT',
+'ACS Employment Status':	'EMPL',
+'ACS English Ability and Linguistic Isolation':	'LISL',
+'ACS Fertility in Past 12 Months by Age':	'FAGE',
+'ACS Geographical Mobility':	'GMOB',
+'ACS Health Insurance by Age by Race':	'HDEM',
+'ACS Health Insurance Coverage':	'HINS',
+'ACS Household Income Distribution':	'INCD',
+'ACS Household Size':	'HHSZ',
+'ACS Housing Costs by Age':	'HCBA',
+'ACS Housing Costs':	'HOUB',
+'ACS Housing Tenure by Education':	'TEDU',
+'ACS Housing Tenure by Heating Fuel':	'THTF',
+'ACS Housing Tenure by Race':	'TRAC',
+'ACS Housing Units by Year Built':	'HYSB',
+'ACS Housing Units in Structure':	'UNST',
+'ACS Housing Units Occupancy':	'HOUT',
+'ACS Housing Units Vacancy Status':	'VACY',
+'ACS Internet Access by Age and Race':	'IDEM',
+'ACS Internet Access by Education':	'IEDU',
+'ACS Internet Access by Income':	'IINC',
+'ACS Internet Access by Labor Force Participation':	'ILFP',
+'ACS Internet Connectivity':	'INTC',
+'ACS Labor Force Participation by Age':	'ALFP',
+'ACS Language Spoken at Home':	'LANG',
+'ACS Living Arrangements':	'LVAR',
+'ACS Marital Status':	'MARS',
+'ACS Median Age':	'MAGE',
+'ACS Median Household Income':	'MINC',
+'ACS Nativity and Citizenship':	'NATC',
+'ACS Place of Birth':	'PLOB',
+'ACS Population and Housing Basics':	'PHBC',
+// 'ACS Population':	'TPOP',
+'ACS Poverty Status':	'POVA',
+'ACS Race and Hispanic Origin':	'RACE',
+'ACS School Enrollment':	'SCHE',
+'ACS Specific Asian Groups':	'ASDG',
+'ACS Specific Hispanic or Latino Origin':	'HLDO',
+'ACS Specific Language Spoken by English Ability':	'SLEA',
+'ACS Transportation to Work':	'TRAN',
+'ACS Travel Time To Work':	'COMM',
+'ACS Vehicle Availability':	'VEHA',
+'ACS Veteran Status':	'VETS',
+'ACS Youth School and Work Activity':	'YOUT'
+}
+
+
 // tracking a pre-existing overlay toggle alert
 let existingAlert;
 
@@ -25,13 +86,36 @@ let selectedItemId = null;
 // small function for cleaning up screenshot names
 function convertToScreenshotName(input){
 
+  // initializing the screenshot name to empty string
+  let screenshotName = "";
+
+  // removing 'variables' from the input
+  input = input.replace('Variables', '');
+
   // first splitting on dashes to get the two constituent parts of the layer's name
   let parts = input.split('-').map(p => p.trim());
   
-  // then replacing spaces with underscores for a cleaner screenshot name
-  let result = parts.join('_').replace(/\s+/g, '_');
+  let acsLayerName = parts[0];
+
+  // if the layer's name does exist as a key in the dict
+  if(layerNameDict[acsLayerName]){
+
+    // then we'll use it to grab the 4-letter abbreviation
+    screenshotName = layerNameDict[acsLayerName];
+    
+    // and differentiate between boundaries and centroids
+    if(parts[1] == 'Centroids'){
+      screenshotName += "_Centroids";
+    }
+    
+  // otherwise, we just default to the full layer name with whitespaces removed
+  } else {
+    screenshotName = parts.join('_').replace(/\s+/g, '_');
+  }
+
+  console.log('Final screenshot name: ', screenshotName)
   
-  return result;
+  return screenshotName;
 }
 
 // screenshot name variable to be used when saving files
